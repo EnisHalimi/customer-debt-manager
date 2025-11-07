@@ -23,6 +23,7 @@ jQuery(document).ready(function ($) {
 
     // Validate form
     var paymentAmount = parseFloat($("#payment-amount").val());
+
     if (isNaN(paymentAmount) || paymentAmount <= 0) {
       alert("Please enter a valid payment amount.");
       return;

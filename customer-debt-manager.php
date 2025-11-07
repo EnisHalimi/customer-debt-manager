@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Customer Debt Manager
- * Plugin URI: https://example.com/customer-debt-manager
+ * Plugin URI: https://github.com/EnisHalimi/customer-debt-manager
  * Description: Allows customers to order on debt/credit and provides debt tracking for both admin and customers. Compatible with WooCommerce HPOS.
- * Version: 1.0.0
- * Author: Your Name
- * Author URI: https://example.com
+ * Version: 1.0.2
+ * Author: Enis Halimi
+ * Author URI: https://github.com/EnisHalimi
  * Text Domain: customer-debt-manager
  * Requires at least: 5.0
  * Tested up to: 6.3
@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('CDM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('CDM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('CDM_VERSION', '1.0.0');
+define('CDM_VERSION', '1.0.2');
 
 // Declare HPOS compatibility early
 add_action('before_woocommerce_init', function() {
@@ -88,7 +88,7 @@ function cdm_deactivate_plugin() {
 }
 
 // Initialize plugin
-add_action('plugins_loaded', 'cdm_init_plugin');
+add_action('plugins_loaded', 'cdm_init_plugin', 20); // Load after other plugins
 
 function cdm_init_plugin() {
     // Check if WooCommerce is active

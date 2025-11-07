@@ -76,6 +76,19 @@ class CDM_Frontend {
             'order' => 'DESC',
             'status' => array('completed', 'processing', 'on-hold', 'pending')
         ));
+
+        $debt_details_nonce = wp_create_nonce('cdm_get_debt_details_frontend');
+
+        $debts_by_order = array();
+        foreach ($debts as $debt_record) {
+            $order_id = intval($debt_record->order_id);
+            if ($order_id > 0) {
+                if (!isset($debts_by_order[$order_id])) {
+                    $debts_by_order[$order_id] = array();
+                }
+                $debts_by_order[$order_id][] = $debt_record;
+            }
+        }
         
         ?>
         <div class="cdm-debt-page" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
@@ -151,14 +164,14 @@ class CDM_Frontend {
                                 
                                 // Get debt record if this is a debt order (either debt payment or COD)
                                 if ($is_debt_payment || $is_cod_debt) {
-                                    foreach ($debts as $debt) {
-                                        if ($debt->order_id == $order_id) {
-                                            $debt_record = $debt;
-                                            $debt_balance = $debt->remaining_amount;
-                                            break;
+                                    $debt_records_for_order = isset($debts_by_order[$order_id]) ? $debts_by_order[$order_id] : array();
+                                    if (!empty($debt_records_for_order)) {
+                                        $debt_record = $debt_records_for_order[0];
+                                        foreach ($debt_records_for_order as $order_debt_record) {
+                                            $debt_balance += floatval($order_debt_record->remaining_amount);
                                         }
                                     }
-                                    
+
                                     if ($debt_balance > 0) {
                                         if ($is_cod_debt) {
                                             $payment_status = 'COD - Pending Collection';
@@ -339,6 +352,8 @@ class CDM_Frontend {
         </div>
         
         <script>
+        var cdmDebtDetailsNonce = '<?php echo esc_js($debt_details_nonce); ?>';
+
         document.addEventListener('DOMContentLoaded', function() {
             // Handle debt details buttons
             document.querySelectorAll('.view-debt-details').forEach(function(button) {
@@ -390,7 +405,7 @@ class CDM_Frontend {
                 }
             };
             
-            xhr.send('action=cdm_get_debt_details_frontend&debt_id=' + debtId);
+            xhr.send('action=cdm_get_debt_details_frontend&debt_id=' + encodeURIComponent(debtId) + '&nonce=' + encodeURIComponent(cdmDebtDetailsNonce));
         }
         
         function closeDebtModal() {
@@ -577,8 +592,12 @@ class CDM_Frontend {
         if (!is_user_logged_in()) {
             wp_send_json_error(array('message' => __('Please log in to view debt details.', 'customer-debt-manager')));
         }
+
+        if (!check_ajax_referer('cdm_get_debt_details_frontend', 'nonce', false)) {
+            wp_send_json_error(array('message' => __('Security check failed.', 'customer-debt-manager')));
+        }
         
-        $debt_id = intval($_POST['debt_id']);
+        $debt_id = isset($_POST['debt_id']) ? absint(wp_unslash($_POST['debt_id'])) : 0;
         $current_user_id = get_current_user_id();
         
         if (!$debt_id) {
@@ -620,13 +639,15 @@ class CDM_Frontend {
         // Debt summary
         $html .= '<div class="debt-summary" style="background: #f8f9fa; padding: 15px; margin-bottom: 20px; border-radius: 5px;">';
         $html .= '<h4 style="margin: 0 0 10px 0;">' . __('Order Information', 'customer-debt-manager') . '</h4>';
-        $html .= '<p><strong>' . __('Order ID:', 'customer-debt-manager') . '</strong> #' . $debt->order_id . '</p>';
-        $html .= '<p><strong>' . __('Debt Type:', 'customer-debt-manager') . '</strong> ' . $debt_type . '</p>';
+        $html .= '<p><strong>' . __('Order ID:', 'customer-debt-manager') . '</strong> #' . absint($debt->order_id) . '</p>';
+        $html .= '<p><strong>' . __('Debt Type:', 'customer-debt-manager') . '</strong> ' . esc_html($debt_type) . '</p>';
         $html .= '<p><strong>' . __('Total Debt:', 'customer-debt-manager') . '</strong> ' . wc_price($debt->debt_amount) . '</p>';
         $html .= '<p><strong>' . __('Paid Amount:', 'customer-debt-manager') . '</strong> ' . wc_price($debt->paid_amount) . '</p>';
         $html .= '<p><strong>' . __('Remaining Balance:', 'customer-debt-manager') . '</strong> <span style="color: #d63638; font-weight: bold;">' . wc_price($debt->remaining_amount) . '</span></p>';
-        $html .= '<p><strong>' . __('Status:', 'customer-debt-manager') . '</strong> <span style="color: ' . ($debt->status === 'paid' ? '#00a32a' : '#856404') . ';">' . ucfirst($debt->status) . '</span></p>';
-        $html .= '<p><strong>' . __('Created:', 'customer-debt-manager') . '</strong> ' . date_i18n(get_option('date_format'), strtotime($debt->created_at)) . '</p>';
+        $html .= '<p><strong>' . __('Status:', 'customer-debt-manager') . '</strong> <span style="color: ' . ($debt->status === 'paid' ? '#00a32a' : '#856404') . ';">' . esc_html(ucfirst($debt->status)) . '</span></p>';
+        $created_timestamp = !empty($debt->created_date) ? strtotime($debt->created_date) : false;
+        $created_display = $created_timestamp ? date_i18n(get_option('date_format'), $created_timestamp) : __('Unknown', 'customer-debt-manager');
+        $html .= '<p><strong>' . __('Created:', 'customer-debt-manager') . '</strong> ' . esc_html($created_display) . '</p>';
         $html .= '</div>';
         
         // Payment history

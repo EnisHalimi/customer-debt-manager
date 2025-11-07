@@ -222,3 +222,11 @@
     background: #c82333;
     border-color: #c82333;
 }
+
+/* Fix for dropdown clipping issues */
+.cdm-debts-admin-page .tablenav.top {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 40px !important;
+    position: relative;
+}
